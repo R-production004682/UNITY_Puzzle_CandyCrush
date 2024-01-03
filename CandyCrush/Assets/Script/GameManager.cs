@@ -47,16 +47,28 @@ public class GameManager : MonoBehaviour
     bool isTouchDown;
 
 
+    int gameScore;
+    int comboCouont;
+
+
+
     private void Start( )
     {
         fieldTiles = new TileController[fieldWidth, fieldHeigth];
         field.transform.localScale = new Vector2(fieldWidth , fieldHeigth);
 
+
+        //スコアとコンボの初期化
+        gameScore   = 0;
+        comboCouont = 0;
+
+        UpdateTextCombo();
+
         panelResult.SetActive( false );
 
         SpawnTile();
 
-        gameMode = GameMode.Touch;
+        gameMode = GameMode.WaitFall;
     }
 
     private void Update( )
@@ -193,7 +205,10 @@ public class GameManager : MonoBehaviour
     /// </summary>
     private void WaitFallMode()
     {
+        //移動終了を待つ
+        if (!IsEndMoveTiles()) return;
 
+        gameMode = GameMode.Delete;
     }
 
     /// <summary>
@@ -228,7 +243,10 @@ public class GameManager : MonoBehaviour
     /// </summary>
     private void SpawnMode()
     {
+        //空いてるフィールドにタイルを生成
+        SpawnTile();
 
+        gameMode = GameMode.WaitFall;
     }
 
     /// <summary>
@@ -287,6 +305,11 @@ public class GameManager : MonoBehaviour
             //タイル入れ替え
             SwapTile(swapIndexA, swapIndexB);
             isTouchDown = false;
+
+            //コンボのリセット
+            comboCouont = 0;
+            UpdateTextCombo();
+
 
             gameMode = GameMode.WaitSwap;//次のモードに遷移
         }
@@ -512,6 +535,17 @@ public class GameManager : MonoBehaviour
         }
 
         //TODO :スコアとコンボ計算
+
+        //コンボ数更新
+        comboCouont++;
+        UpdateTextCombo();
+
+        int baseScore  = deleteTiles.Count * deleteScore;
+        int comboScore = comboCouont * deleteScore;
+
+        gameScore += baseScore + comboScore;
+        textGameScore.text = "" + gameScore;
+
     }
 
 
@@ -551,4 +585,21 @@ public class GameManager : MonoBehaviour
             tile.GravityFall(IndexToWorldPosition(indexB.x , indexB.y));
         }
     }
+
+
+    /// <summary>
+    /// コンボ表示
+    /// </summary>
+    private void UpdateTextCombo()
+    {
+        string text = "" + comboCouont + " Combo!!";
+
+        if(comboCouont < 2)
+        {
+            text = "";
+        }
+        
+        textCombo.text = text;
+    }
+
 }
