@@ -5,6 +5,7 @@ using TMPro;
 using Unity.VisualScripting;
 using UnityEditor.PackageManager.UI;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
@@ -18,6 +19,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] SpriteRenderer  field;
     [SerializeField] TileController  prefabTile;
     [SerializeField] TextMeshProUGUI textGameScore;
+    [SerializeField] TextMeshProUGUI textGameTimer;
     [SerializeField] TextMeshProUGUI textCombo;
     [SerializeField] TextMeshProUGUI textResultScore;
     [SerializeField] GameObject panelResult;
@@ -50,10 +52,13 @@ public class GameManager : MonoBehaviour
     int gameScore;
     int comboCouont;
 
+    AudioSource source;
 
 
     private void Start( )
     {
+        source = GetComponent<AudioSource>();
+
         fieldTiles = new TileController[fieldWidth, fieldHeigth];
         field.transform.localScale = new Vector2(fieldWidth , fieldHeigth);
 
@@ -73,6 +78,19 @@ public class GameManager : MonoBehaviour
 
     private void Update( )
     {
+        //タイムリミット
+        gameTimer -= Time.deltaTime;
+
+        if(gameTimer < 0)
+        {
+            GameResult();
+            gameTimer = -1;
+        }
+
+        //タイマー表示の更新
+        textGameTimer.text = "" + (int)(gameTimer + 1);
+
+
         if(gameMode == GameMode.WaitFall)
         {
             WaitFallMode();
@@ -225,6 +243,26 @@ public class GameManager : MonoBehaviour
             DeleteTiles(deleteTiles);
             //次のモードに遷移
             gameMode = GameMode.Fall;
+        }
+        //タッチモード遷移前
+        else
+        {
+            //移動可能なタイル
+            List<Vector2Int> movableTiles = GetMovableTiles();
+
+            if(movableTiles.Count < 1)
+            {
+                deleteTiles.Clear();
+
+                foreach(var tile in fieldTiles)
+                {
+                    Vector2Int index = WorldToIndexPosition(tile.transform.position);
+                    deleteTiles.Add(index);
+                }
+
+                DeleteTiles(deleteTiles);
+                gameMode=GameMode.Fall;
+            }
         }
     }
 
@@ -534,8 +572,6 @@ public class GameManager : MonoBehaviour
             SetFieldTile(item.x , item.y);
         }
 
-        //TODO :スコアとコンボ計算
-
         //コンボ数更新
         comboCouont++;
         UpdateTextCombo();
@@ -545,6 +581,8 @@ public class GameManager : MonoBehaviour
 
         gameScore += baseScore + comboScore;
         textGameScore.text = "" + gameScore;
+
+        source.PlayOneShot(seDelete);
 
     }
 
@@ -602,4 +640,64 @@ public class GameManager : MonoBehaviour
         textCombo.text = text;
     }
 
+
+    private List<Vector2Int> GetMovableTiles()
+    {
+        List<Vector2Int> movableTiles = new List<Vector2Int>();
+
+        //全タイルを走査する
+        foreach(var tile in fieldTiles)
+        {
+            Vector2Int indexA = WorldToIndexPosition(tile.transform.position);
+
+            //上下左右に動かす
+            List<Vector2Int> directions = new List<Vector2Int>()
+            {
+                Vector2Int.left,
+                Vector2Int.right,
+                Vector2Int.up,
+                Vector2Int.down,
+            };
+
+            //全方位チェック
+            foreach(var dir in directions)
+            {
+                Vector2Int indexB = indexA + dir;
+                SwapTileDatas(indexA , indexB);
+
+                //一つでも消せる
+                if(GetDeleteTiles().Count > 0)
+                {
+                    if(!movableTiles.Contains(indexA))
+                    {
+                        movableTiles.Add(indexA);
+                    }
+                }
+
+                //元に戻す
+                SwapTileDatas(indexA , indexB);
+            }
+        }
+        return movableTiles;
+    }
+
+
+    /// <summary>
+    /// ゲーム終了
+    /// </summary>
+    private void GameResult()
+    {
+        textResultScore.text = "" + gameScore;
+        panelResult.SetActive(true);
+
+        enabled = false;
+    }
+
+    /// <summary>
+    /// リトライボタンが押された時の処理
+    /// </summary>
+    public void OnClickRetryButton()
+    {
+        SceneManager.LoadScene("CandyCrushGame");
+    }
 }
